@@ -2,6 +2,11 @@ extern crate pkg_config;
 #[cfg(target_env = "msvc")]
 extern crate vcpkg;
 
+#[cfg(target_os = "macos")]
+const LIBBSON_SOURCE: &str = "system";
+#[cfg(not(target_os = "macos"))]
+const LIBBSON_SOURCE: &str = "bundled";
+
 use std::env;
 
 #[cfg(not(target_env = "msvc"))]
@@ -51,7 +56,7 @@ fn lin(mongoc_version: &str) {
             command.arg("--enable-static=yes");
             command.arg("--enable-shared=no");
             command.arg("--enable-shm-counters=no");
-            command.arg("--with-libbson=system");
+            command.arg(format!("--with-libbson={}", LIBBSON_SOURCE).as_str());
             command.arg("--with-pic=yes");
             command.arg("--with-snappy=no");
             command.arg("--with-zlib=no");
