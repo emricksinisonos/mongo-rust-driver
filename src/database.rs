@@ -1,36 +1,36 @@
 //! Access to a MongoDB database.
 
-use std::ffi::{CString,CStr};
 use std::borrow::Cow;
+use std::ffi::{CStr, CString};
 use std::ptr;
 
-use mongoc::bindings;
 use bson::Document;
+use mongoc::bindings;
 
-use super::Result;
-use super::CommandAndFindOptions;
-use super::{BsoncError,InvalidParamsError};
 use super::bsonc::Bsonc;
 use super::client::Client;
 use super::collection;
 use super::collection::Collection;
 use super::cursor;
-use super::cursor::Cursor;
 use super::cursor::BatchCursor;
+use super::cursor::Cursor;
 use super::read_prefs::ReadPrefs;
+use super::CommandAndFindOptions;
+use super::Result;
+use super::{BsoncError, InvalidParamsError};
 use flags::FlagsValue;
 
 #[doc(hidden)]
 pub enum CreatedBy<'a> {
     BorrowedClient(&'a Client<'a>),
-    OwnedClient(Client<'a>)
+    OwnedClient(Client<'a>),
 }
 
 fn get_coll_name_from_doc(doc: &Document) -> Result<String> {
     const VALID_COMMANDS: &'static [&'static str] = &["find", "aggregate", "listIndexes"];
     for s in VALID_COMMANDS {
         if let Ok(val) = doc.get_str(s) {
-            return Ok(val.to_owned())
+            return Ok(val.to_owned());
         }
     }
     Err(InvalidParamsError.into())
@@ -41,19 +41,16 @@ fn get_coll_name_from_doc(doc: &Document) -> Result<String> {
 /// A database instance can be created by calling `get_database` or `take_database` on a `Client` instance.
 pub struct Database<'a> {
     _created_by: CreatedBy<'a>,
-    inner:   *mut bindings::mongoc_database_t
+    inner: *mut bindings::mongoc_database_t,
 }
 
 impl<'a> Database<'a> {
     #[doc(ignore)]
-    pub fn new(
-        created_by: CreatedBy<'a>,
-        inner: *mut bindings::mongoc_database_t
-    ) -> Database<'a> {
+    pub fn new(created_by: CreatedBy<'a>, inner: *mut bindings::mongoc_database_t) -> Database<'a> {
         assert!(!inner.is_null());
         Database {
             _created_by: created_by,
-            inner: inner
+            inner: inner,
         }
     }
 
@@ -64,7 +61,7 @@ impl<'a> Database<'a> {
     pub fn command(
         &'a self,
         command: Document,
-        options: Option<&CommandAndFindOptions>
+        options: Option<&CommandAndFindOptions>,
     ) -> Result<Cursor<'a>> {
         assert!(!self.inner.is_null());
 
@@ -82,23 +79,23 @@ impl<'a> Database<'a> {
                 try!(Bsonc::from_document(&command)).inner(),
                 match fields_bsonc {
                     Some(ref f) => f.inner(),
-                    None => ptr::null()
+                    None => ptr::null(),
                 },
                 match options.read_prefs {
                     Some(ref prefs) => prefs.inner(),
-                    None => ptr::null()
-                }
+                    None => ptr::null(),
+                },
             )
         };
 
         if cursor_ptr.is_null() {
-            return Err(InvalidParamsError.into())
+            return Err(InvalidParamsError.into());
         }
 
         Ok(Cursor::new(
             cursor::CreatedBy::Database(self),
             cursor_ptr,
-            fields_bsonc
+            fields_bsonc,
         ))
     }
 
@@ -109,13 +106,13 @@ impl<'a> Database<'a> {
     pub fn command_batch(
         &'a self,
         command: Document,
-        options: Option<&CommandAndFindOptions>
+        options: Option<&CommandAndFindOptions>,
     ) -> Result<BatchCursor<'a>> {
         let coll_name = get_coll_name_from_doc(&command)?;
         Ok(BatchCursor::new(
             self.command(command, options)?,
             self,
-            coll_name
+            coll_name,
         ))
     }
 
@@ -123,7 +120,7 @@ impl<'a> Database<'a> {
     pub fn command_simple(
         &'a self,
         command: Document,
-        read_prefs: Option<&ReadPrefs>
+        read_prefs: Option<&ReadPrefs>,
     ) -> Result<Document> {
         assert!(!self.inner.is_null());
 
@@ -138,17 +135,17 @@ impl<'a> Database<'a> {
                 try!(Bsonc::from_document(&command)).inner(),
                 match read_prefs {
                     Some(ref prefs) => prefs.inner(),
-                    None => ptr::null()
+                    None => ptr::null(),
                 },
                 reply.mut_inner(),
-                error.mut_inner()
+                error.mut_inner(),
             )
         };
 
         if success == 1 {
             match reply.as_document_utf8_lossy() {
                 Ok(document) => return Ok(document),
-                Err(error)   => return Err(error.into())
+                Err(error) => return Err(error.into()),
             }
         } else {
             Err(error.into())
@@ -158,8 +155,8 @@ impl<'a> Database<'a> {
     /// Create a new collection in this database.
     pub fn create_collection<S: Into<Vec<u8>>>(
         &self,
-        name:    S,
-        options: Option<&Document>
+        name: S,
+        options: Option<&Document>,
     ) -> Result<Collection> {
         assert!(!self.inner.is_null());
 
@@ -167,7 +164,7 @@ impl<'a> Database<'a> {
         let name_cstring = CString::new(name).unwrap();
         let options_bsonc = match options {
             Some(o) => Some(try!(Bsonc::from_document(o))),
-            None => None
+            None => None,
         };
 
         let coll = unsafe {
@@ -176,14 +173,17 @@ impl<'a> Database<'a> {
                 name_cstring.as_ptr(),
                 match options_bsonc {
                     Some(ref o) => o.inner(),
-                    None => ptr::null()
+                    None => ptr::null(),
                 },
-                error.mut_inner()
+                error.mut_inner(),
             )
         };
 
         if error.is_empty() {
-            Ok(Collection::new(collection::CreatedBy::BorrowedDatabase(self), coll))
+            Ok(Collection::new(
+                collection::CreatedBy::BorrowedDatabase(self),
+                coll,
+            ))
         } else {
             Err(error.into())
         }
@@ -206,25 +206,17 @@ impl<'a> Database<'a> {
 
     unsafe fn collection_ptr(&self, collection: Vec<u8>) -> *mut bindings::mongoc_collection_t {
         let collection_cstring = CString::new(collection).unwrap();
-        bindings::mongoc_database_get_collection(
-            self.inner,
-            collection_cstring.as_ptr()
-        )
+        bindings::mongoc_database_get_collection(self.inner, collection_cstring.as_ptr())
     }
 
     /// Get the name of this database.
     pub fn get_name(&self) -> Cow<str> {
-        let cstr = unsafe {
-            CStr::from_ptr(bindings::mongoc_database_get_name(self.inner))
-        };
+        let cstr = unsafe { CStr::from_ptr(bindings::mongoc_database_get_name(self.inner)) };
         String::from_utf8_lossy(cstr.to_bytes())
     }
 
     /// This function checks to see if a collection exists on the MongoDB server within database.
-    pub fn has_collection<S: Into<Vec<u8>>>(
-        &self,
-        name:    S
-    ) -> Result<bool> {
+    pub fn has_collection<S: Into<Vec<u8>>>(&self, name: S) -> Result<bool> {
         let mut error = BsoncError::empty();
         let name_cstring = CString::new(name).unwrap();
 
@@ -232,13 +224,14 @@ impl<'a> Database<'a> {
             bindings::mongoc_database_has_collection(
                 self.inner,
                 name_cstring.as_ptr(),
-                error.mut_inner())
+                error.mut_inner(),
+            )
         };
 
         if error.is_empty() {
-            Ok(match has_collection{
+            Ok(match has_collection {
                 0 => false,
-                _ => true
+                _ => true,
             })
         } else {
             Err(error.into())

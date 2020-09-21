@@ -13,16 +13,16 @@ pub enum ReadMode {
     /// In most situations, operations read from among the nearest secondary members, but if no secondaries are available, operations read from the primary.
     SecondaryPreferred,
     /// Operations read from among the nearest members of the replica set, irrespective of the member’s type.
-    Nearest
+    Nearest,
 }
 
 fn read_mode_value(read_mode: &ReadMode) -> bindings::mongoc_read_mode_t {
     match read_mode {
-        &ReadMode::Primary            => bindings::MONGOC_READ_PRIMARY,
-        &ReadMode::Secondary          => bindings::MONGOC_READ_SECONDARY,
-        &ReadMode::PrimaryPreferred   => bindings::MONGOC_READ_PRIMARY_PREFERRED,
+        &ReadMode::Primary => bindings::MONGOC_READ_PRIMARY,
+        &ReadMode::Secondary => bindings::MONGOC_READ_SECONDARY,
+        &ReadMode::PrimaryPreferred => bindings::MONGOC_READ_PRIMARY_PREFERRED,
         &ReadMode::SecondaryPreferred => bindings::MONGOC_READ_SECONDARY_PREFERRED,
-        &ReadMode::Nearest            => bindings::MONGOC_READ_NEAREST
+        &ReadMode::Nearest => bindings::MONGOC_READ_NEAREST,
     }
 }
 
@@ -31,7 +31,7 @@ fn read_mode_value(read_mode: &ReadMode) -> bindings::mongoc_read_mode_t {
 /// It allows for hinting to the driver which nodes in a replica set should be accessed first.
 /// Generally, it makes the most sense to stick with the global default, `Primary`. All of the other modes come with caveats that won't be covered in great detail here.
 pub struct ReadPrefs {
-    inner: *mut bindings::mongoc_read_prefs_t
+    inner: *mut bindings::mongoc_read_prefs_t,
 }
 
 impl ReadPrefs {
@@ -44,7 +44,7 @@ impl ReadPrefs {
     }
 
     /// Get a new instance of the default read pref.
-    pub fn default() -> ReadPrefs{
+    pub fn default() -> ReadPrefs {
         ReadPrefs::new(&ReadMode::Primary)
     }
 

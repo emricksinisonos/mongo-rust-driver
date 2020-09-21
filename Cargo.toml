@@ -9,6 +9,7 @@ repository    = "https://github.com/thijsc/mongo-rust-driver"
 keywords      = ["mongodb", "database"]
 categories    = ["database", "api-bindings"]
 license       = "MIT/Apache-2.0"
+autotests     = false
 
 [badges]
 travis-ci = { repository = "thijsc/mongo-rust-driver" }
@@ -21,7 +22,7 @@ name = "tests"
 [dependencies]
 libc = "^0.2"
 log  = "^0.4"
-bson = "^0.12"
+bson = "^1.1"
 serde = "1.0"
 serde_derive = "1.0"
 

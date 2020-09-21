@@ -1,5 +1,5 @@
-extern crate mongo_driver;
 extern crate chrono;
+extern crate mongo_driver;
 #[macro_use]
 extern crate bson;
 

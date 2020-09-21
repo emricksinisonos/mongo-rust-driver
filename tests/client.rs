@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::thread;
 
-use mongo_driver::client::{ClientPool,SslOptions,Uri};
+use mongo_driver::client::{ClientPool, SslOptions, Uri};
 
 #[test]
 fn test_new_pool_pop_client_and_borrow_collection() {
@@ -91,14 +91,16 @@ fn test_read_command_with_opts() {
     let collection = client.get_collection(db_name, coll_name);
 
     let document = doc! {
-        "key_1" => "Value 1",
-        "key_2" => "kācaṃ śaknomyattum; nopahinasti mām. \u{0}"
+        "key_1" : "Value 1",
+        "key_2" : "kācaṃ śaknomyattum; nopahinasti mām. \u{0}"
     };
-    collection.insert(&document, None).expect("Could not insert document");
+    collection
+        .insert(&document, None)
+        .expect("Could not insert document");
 
-    let status = client.read_command_with_opts(db_name,
-                                               &doc!{"collStats": coll_name},
-                                               None, None).unwrap();
+    let status = client
+        .read_command_with_opts(db_name, &doc! {"collStats": coll_name}, None, None)
+        .unwrap();
 
     assert!(status.contains_key("totalIndexSize"));
     assert!(status.contains_key("storageSize"));
@@ -113,7 +115,7 @@ fn test_new_pool_with_ssl_options() {
         Some(PathBuf::from("./README.md")),
         Some(PathBuf::from("./README.md")),
         Some(PathBuf::from("./README.md")),
-        false
+        false,
     );
     assert!(ssl_options.is_ok());
     ClientPool::new(uri, Some(ssl_options.unwrap()));
@@ -128,7 +130,8 @@ fn test_ssl_options_nonexistent_file() {
         Some(PathBuf::from("/tmp/aaaaa.aa")),
         Some(PathBuf::from("/tmp/aaaaa.aa")),
         false
-    ).is_err());
+    )
+    .is_err());
 }
 
 // SSL tests below are currently tested on a private replica set, will be skipped if you set
@@ -137,26 +140,20 @@ fn test_ssl_options_nonexistent_file() {
 #[test]
 fn test_ssl_connection_success() {
     if env::var("SKIP_SSL_CONNECTION_TESTS") == Ok("true".to_string()) {
-        return
+        return;
     }
 
     let uri = Uri::new(env::var("MONGO_RUST_DRIVER_SSL_URI").unwrap()).unwrap();
     let pem_file = PathBuf::from(env::var("MONGO_RUST_DRIVER_SSL_PEM_FILE").unwrap());
     let ca_file = PathBuf::from(env::var("MONGO_RUST_DRIVER_SSL_CA_FILE").unwrap());
 
-    let ssl_options = SslOptions::new(
-        Some(pem_file),
-        None,
-        Some(ca_file),
-        None,
-        None,
-        false
-    ).unwrap();
+    let ssl_options =
+        SslOptions::new(Some(pem_file), None, Some(ca_file), None, None, false).unwrap();
 
     let pool = ClientPool::new(uri, Some(ssl_options));
     let client = pool.pop();
     let database = client.get_database("admin");
 
-    let result = database.command_simple(doc!{"ping" => 1}, None).unwrap();
+    let result = database.command_simple(doc! {"ping" : 1}, None).unwrap();
     assert!(result.contains_key("ok"));
 }

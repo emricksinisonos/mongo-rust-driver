@@ -2,14 +2,14 @@ use std::env;
 
 use bson;
 
-use mongo_driver::client::{ClientPool,Uri};
+use mongo_driver::client::{ClientPool, Uri};
 
 #[test]
 fn test_execute_error() {
-    let uri            = Uri::new("mongodb://localhost:27017/").unwrap();
-    let pool           = ClientPool::new(uri, None);
-    let client         = pool.pop();
-    let mut collection     = client.get_collection("rust_driver_test", "bulk_operation_error");
+    let uri = Uri::new("mongodb://localhost:27017/").unwrap();
+    let pool = ClientPool::new(uri, None);
+    let client = pool.pop();
+    let mut collection = client.get_collection("rust_driver_test", "bulk_operation_error");
     collection.drop().unwrap_or(());
 
     let bulk_operation = collection.create_bulk_operation(None);
@@ -23,19 +23,24 @@ fn test_execute_error() {
 
 #[test]
 fn test_basics() {
-    let uri            = Uri::new("mongodb://localhost:27017/").unwrap();
-    let pool           = ClientPool::new(uri, None);
-    let client         = pool.pop();
-    let mut collection     = client.get_collection("rust_driver_test", "bulk_operation_basics");
+    let uri = Uri::new("mongodb://localhost:27017/").unwrap();
+    let pool = ClientPool::new(uri, None);
+    let client = pool.pop();
+    let mut collection = client.get_collection("rust_driver_test", "bulk_operation_basics");
     collection.drop().unwrap_or(());
 
     let bulk_operation = collection.create_bulk_operation(None);
 
-    let document = doc! {"key_1" => "Value 1"};
+    let document = doc! {"key_1" : "Value 1"};
     bulk_operation.insert(&document).expect("Could not insert");
     assert!(bulk_operation.execute().is_ok());
 
-    let first_document = collection.find(&doc!{}, None).unwrap().next().unwrap().unwrap();
+    let first_document = collection
+        .find(&doc! {}, None)
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap();
     assert_eq!(
         first_document.get("key_1").unwrap(),
         &bson::Bson::String("Value 1".to_string())
@@ -44,19 +49,24 @@ fn test_basics() {
 
 #[test]
 fn test_utf8() {
-    let uri            = Uri::new("mongodb://localhost:27017/").unwrap();
-    let pool           = ClientPool::new(uri, None);
-    let client         = pool.pop();
-    let mut collection     = client.get_collection("rust_driver_test", "bulk_operation_utf8");
+    let uri = Uri::new("mongodb://localhost:27017/").unwrap();
+    let pool = ClientPool::new(uri, None);
+    let client = pool.pop();
+    let mut collection = client.get_collection("rust_driver_test", "bulk_operation_utf8");
     collection.drop().unwrap_or(());
 
     let bulk_operation = collection.create_bulk_operation(None);
 
-    let document = doc! {"key_1" => "kācaṃ śaknomyattum; nopahinasti mām."};
+    let document = doc! {"key_1" : "kācaṃ śaknomyattum; nopahinasti mām."};
     bulk_operation.insert(&document).expect("Could not insert");
     assert!(bulk_operation.execute().is_ok());
 
-    let first_document = collection.find(&doc!{}, None).unwrap().next().unwrap().unwrap();
+    let first_document = collection
+        .find(&doc! {}, None)
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap();
     assert_eq!(
         first_document.get("key_1").unwrap(),
         &bson::Bson::String("kācaṃ śaknomyattum; nopahinasti mām.".to_string())
@@ -66,12 +76,12 @@ fn test_utf8() {
 #[test]
 fn test_insert_remove_replace_update_extended() {
     if env::var("SKIP_EXTENDED_BULK_OPERATION_TESTS") == Ok("true".to_string()) {
-        return
+        return;
     }
 
-    let uri            = Uri::new("mongodb://localhost:27017/").unwrap();
-    let pool           = ClientPool::new(uri, None);
-    let client         = pool.pop();
+    let uri = Uri::new("mongodb://localhost:27017/").unwrap();
+    let pool = ClientPool::new(uri, None);
+    let client = pool.pop();
     let mut collection = client.get_collection("rust_driver_test", "bulk_operation_extended");
     collection.drop().unwrap_or(());
 
@@ -80,8 +90,8 @@ fn test_insert_remove_replace_update_extended() {
         let bulk_operation = collection.create_bulk_operation(None);
 
         let document = doc! {
-            "key_1" => "Value 1",
-            "key_2" => "Value 2"
+            "key_1" : "Value 1",
+            "key_2" : "Value 2"
         };
         for _ in 0..5 {
             bulk_operation.insert(&document).unwrap();
@@ -92,25 +102,23 @@ fn test_insert_remove_replace_update_extended() {
 
         assert_eq!(
             result.ok().unwrap().get("nInserted").unwrap(),
-            &bson::Bson::I32(5)
+            &bson::Bson::Int32(5)
         );
-        assert_eq!(5, collection.count(&doc!{}, None).unwrap());
+        assert_eq!(5, collection.count(&doc! {}, None).unwrap());
     }
 
-    let query = doc!{};
+    let query = doc! {};
 
     let update_document = doc! {
-        "$set" => {"key_1" => "Value update"}
+        "$set" : {"key_1" : "Value update"}
     };
 
     // Update one
     {
         let bulk_operation = collection.create_bulk_operation(None);
-        bulk_operation.update_one(
-            &query,
-            &update_document,
-            false
-        ).unwrap();
+        bulk_operation
+            .update_one(&query, &update_document, false)
+            .unwrap();
 
         let result = bulk_operation.execute();
         println!("{:?}", result);
@@ -118,10 +126,15 @@ fn test_insert_remove_replace_update_extended() {
 
         assert_eq!(
             result.ok().unwrap().get("nModified").unwrap(),
-            &bson::Bson::I32(1)
+            &bson::Bson::Int32(1)
         );
 
-        let first_document = collection.find(&doc!{}, None).unwrap().next().unwrap().unwrap();
+        let first_document = collection
+            .find(&doc! {}, None)
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap();
         assert_eq!(
             first_document.get("key_1").unwrap(),
             &bson::Bson::String("Value update".to_string())
@@ -133,11 +146,9 @@ fn test_insert_remove_replace_update_extended() {
     // Update all
     {
         let bulk_operation = collection.create_bulk_operation(None);
-        bulk_operation.update(
-            &query,
-            &update_document,
-            false
-        ).unwrap();
+        bulk_operation
+            .update(&query, &update_document, false)
+            .unwrap();
 
         let result = bulk_operation.execute();
         println!("{:?}", result);
@@ -145,11 +156,21 @@ fn test_insert_remove_replace_update_extended() {
 
         assert_eq!(
             result.ok().unwrap().get("nModified").unwrap(),
-            &bson::Bson::I32(4)
+            &bson::Bson::Int32(4)
         );
 
-        collection.find(&doc!{}, None).unwrap().next().unwrap().unwrap();
-        let second_document = collection.find(&doc!{}, None).unwrap().next().unwrap().unwrap();
+        collection
+            .find(&doc! {}, None)
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap();
+        let second_document = collection
+            .find(&doc! {}, None)
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap();
         assert_eq!(
             second_document.get("key_1").unwrap(),
             &bson::Bson::String("Value update".to_string())
@@ -160,24 +181,27 @@ fn test_insert_remove_replace_update_extended() {
 
     // Replace one
     {
-        let replace_document = doc! { "key_1" => "Value replace" };
+        let replace_document = doc! { "key_1" : "Value replace" };
 
         let bulk_operation = collection.create_bulk_operation(None);
-        bulk_operation.replace_one(
-            &query,
-            &replace_document,
-            false
-        ).unwrap();
+        bulk_operation
+            .replace_one(&query, &replace_document, false)
+            .unwrap();
 
         let result = bulk_operation.execute();
         assert!(result.is_ok());
 
         assert_eq!(
             result.ok().unwrap().get("nModified").unwrap(),
-            &bson::Bson::I32(1)
+            &bson::Bson::Int32(1)
         );
 
-        let first_document = collection.find(&doc!{}, None).unwrap().next().unwrap().unwrap();
+        let first_document = collection
+            .find(&doc! {}, None)
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap();
         assert_eq!(
             first_document.get("key_1").unwrap(),
             &bson::Bson::String("Value replace".to_string())
@@ -196,7 +220,7 @@ fn test_insert_remove_replace_update_extended() {
 
         assert_eq!(
             result.ok().unwrap().get("nRemoved").unwrap(),
-            &bson::Bson::I32(1)
+            &bson::Bson::Int32(1)
         );
         assert_eq!(4, collection.count(&query, None).unwrap());
     }
@@ -211,7 +235,7 @@ fn test_insert_remove_replace_update_extended() {
 
         assert_eq!(
             result.ok().unwrap().get("nRemoved").unwrap(),
-            &bson::Bson::I32(4)
+            &bson::Bson::Int32(4)
         );
         assert_eq!(0, collection.count(&query, None).unwrap());
     }

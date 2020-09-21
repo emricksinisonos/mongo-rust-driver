@@ -1,9 +1,11 @@
-use std::error;
-use std::fmt;
 use std::borrow::Cow;
+use std::error;
 use std::ffi::CStr;
+use std::fmt;
 
-use bson::{DecoderError,EncoderError,ValueAccessError,Document};
+use bson::{
+    de::Error as DecoderError, document::ValueAccessError, ser::Error as EncoderError, Document,
+};
 use std::ffi::NulError;
 
 use mongoc::bindings;
@@ -21,7 +23,7 @@ pub enum MongoError {
     /// Invalid params error that can be reported by the underlying C driver.
     InvalidParams(InvalidParamsError),
     // from CString::new(db)
-    Nul(NulError)
+    Nul(NulError),
 }
 
 impl fmt::Display for MongoError {
@@ -32,7 +34,7 @@ impl fmt::Display for MongoError {
             MongoError::Decoder(ref err) => write!(f, "{}", err),
             MongoError::ValueAccessError(ref err) => write!(f, "{}", err),
             MongoError::InvalidParams(ref err) => write!(f, "{}", err),
-            MongoError::Nul(ref err) => write!(f, "{}", err)
+            MongoError::Nul(ref err) => write!(f, "{}", err),
         }
     }
 }
@@ -45,7 +47,7 @@ impl fmt::Debug for MongoError {
             MongoError::Encoder(ref err) => write!(f, "MongoError ({:?})", err),
             MongoError::ValueAccessError(ref err) => write!(f, "MongoError ({:?})", err),
             MongoError::InvalidParams(ref err) => write!(f, "MongoError ({:?})", err),
-            MongoError::Nul(ref err) => write!(f, "MongoError ({:?})", err)
+            MongoError::Nul(ref err) => write!(f, "MongoError ({:?})", err),
         }
     }
 }
@@ -58,18 +60,18 @@ impl error::Error for MongoError {
             MongoError::Encoder(ref err) => err.description(),
             MongoError::ValueAccessError(ref err) => err.description(),
             MongoError::InvalidParams(ref err) => err.description(),
-            MongoError::Nul(ref err) => err.description()
+            MongoError::Nul(ref err) => err.description(),
         }
     }
 
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             MongoError::Bsonc(ref err) => Some(err),
             MongoError::Decoder(ref err) => Some(err),
             MongoError::Encoder(ref err) => Some(err),
             MongoError::ValueAccessError(ref err) => Some(err),
             MongoError::InvalidParams(ref err) => Some(err),
-            MongoError::Nul(ref err) => Some(err)
+            MongoError::Nul(ref err) => Some(err),
         }
     }
 }
@@ -104,7 +106,7 @@ pub struct BsoncError {
 }
 
 /// MongoDB error domain.
-#[derive(Debug,PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum MongoErrorDomain {
     Blank,
     Client,
@@ -121,11 +123,11 @@ pub enum MongoErrorDomain {
     Collection,
     Gridfs,
     Scram,
-    Unknown
+    Unknown,
 }
 
 /// MongoDB error code.
-#[derive(Debug,PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum MongoErrorCode {
     Blank,
     StreamInvalidType,
@@ -161,17 +163,17 @@ pub enum MongoErrorCode {
     QueryNotTailable,
     WriteConcernError,
     DuplicateKey,
-    Unknown(u32)
+    Unknown(u32),
 }
 
 impl BsoncError {
     pub fn empty() -> BsoncError {
         BsoncError {
             inner: bindings::bson_error_t {
-                domain:  0,
-                code:    0,
-                message: [0; 504]
-            }
+                domain: 0,
+                code: 0,
+                message: [0; 504],
+            },
         }
     }
 
@@ -183,63 +185,77 @@ impl BsoncError {
     /// The error's domain.
     pub fn domain(&self) -> MongoErrorDomain {
         match self.inner.domain {
-            0                                 => MongoErrorDomain::Blank,
-            bindings::MONGOC_ERROR_CLIENT     => MongoErrorDomain::Client,
-            bindings::MONGOC_ERROR_STREAM     => MongoErrorDomain::Stream,
-            bindings::MONGOC_ERROR_PROTOCOL   => MongoErrorDomain::Protocol,
-            bindings::MONGOC_ERROR_CURSOR     => MongoErrorDomain::Cursor,
-            bindings::MONGOC_ERROR_QUERY      => MongoErrorDomain::Query,
-            bindings::MONGOC_ERROR_INSERT     => MongoErrorDomain::Insert,
-            bindings::MONGOC_ERROR_SASL       => MongoErrorDomain::Sasl,
-            bindings::MONGOC_ERROR_BSON       => MongoErrorDomain::Bson,
-            bindings::MONGOC_ERROR_MATCHER    => MongoErrorDomain::Matcher,
-            bindings::MONGOC_ERROR_NAMESPACE  => MongoErrorDomain::Namespace,
-            bindings::MONGOC_ERROR_COMMAND    => MongoErrorDomain::Command,
+            0 => MongoErrorDomain::Blank,
+            bindings::MONGOC_ERROR_CLIENT => MongoErrorDomain::Client,
+            bindings::MONGOC_ERROR_STREAM => MongoErrorDomain::Stream,
+            bindings::MONGOC_ERROR_PROTOCOL => MongoErrorDomain::Protocol,
+            bindings::MONGOC_ERROR_CURSOR => MongoErrorDomain::Cursor,
+            bindings::MONGOC_ERROR_QUERY => MongoErrorDomain::Query,
+            bindings::MONGOC_ERROR_INSERT => MongoErrorDomain::Insert,
+            bindings::MONGOC_ERROR_SASL => MongoErrorDomain::Sasl,
+            bindings::MONGOC_ERROR_BSON => MongoErrorDomain::Bson,
+            bindings::MONGOC_ERROR_MATCHER => MongoErrorDomain::Matcher,
+            bindings::MONGOC_ERROR_NAMESPACE => MongoErrorDomain::Namespace,
+            bindings::MONGOC_ERROR_COMMAND => MongoErrorDomain::Command,
             bindings::MONGOC_ERROR_COLLECTION => MongoErrorDomain::Collection,
-            bindings::MONGOC_ERROR_GRIDFS     => MongoErrorDomain::Gridfs,
-            bindings::MONGOC_ERROR_SCRAM      => MongoErrorDomain::Scram,
-            _                                 => MongoErrorDomain::Unknown
+            bindings::MONGOC_ERROR_GRIDFS => MongoErrorDomain::Gridfs,
+            bindings::MONGOC_ERROR_SCRAM => MongoErrorDomain::Scram,
+            _ => MongoErrorDomain::Unknown,
         }
     }
 
     /// The error's code.
     pub fn code(&self) -> MongoErrorCode {
         match self.inner.code {
-            0                                                    => MongoErrorCode::Blank,
-            bindings::MONGOC_ERROR_STREAM_INVALID_TYPE           => MongoErrorCode::StreamInvalidType,
-            bindings::MONGOC_ERROR_STREAM_INVALID_STATE          => MongoErrorCode::StreamInvalidState,
-            bindings::MONGOC_ERROR_STREAM_NAME_RESOLUTION        => MongoErrorCode::StreamNameResolution,
-            bindings::MONGOC_ERROR_STREAM_SOCKET                 => MongoErrorCode::StreamSocket,
-            bindings::MONGOC_ERROR_STREAM_CONNECT                => MongoErrorCode::StreamConnect,
-            bindings::MONGOC_ERROR_STREAM_NOT_ESTABLISHED        => MongoErrorCode::StreamNotEstablished,
-            bindings::MONGOC_ERROR_CLIENT_NOT_READY              => MongoErrorCode::ClientNotReady,
-            bindings::MONGOC_ERROR_CLIENT_TOO_BIG                => MongoErrorCode::ClientTooBig,
-            bindings::MONGOC_ERROR_CLIENT_TOO_SMALL              => MongoErrorCode::ClientTooSmall,
-            bindings::MONGOC_ERROR_CLIENT_GETNONCE               => MongoErrorCode::ClientGetnonce,
-            bindings::MONGOC_ERROR_CLIENT_AUTHENTICATE           => MongoErrorCode::ClientAuthenticate,
-            bindings::MONGOC_ERROR_CLIENT_NO_ACCEPTABLE_PEER     => MongoErrorCode::ClientNoAcceptablePeer,
-            bindings::MONGOC_ERROR_CLIENT_IN_EXHAUST             => MongoErrorCode::ClientInExhaust,
-            bindings::MONGOC_ERROR_PROTOCOL_INVALID_REPLY        => MongoErrorCode::ProtocolInvalidReply,
-            bindings::MONGOC_ERROR_PROTOCOL_BAD_WIRE_VERSION     => MongoErrorCode::ProtocolBadWireVersion,
-            bindings::MONGOC_ERROR_CURSOR_INVALID_CURSOR         => MongoErrorCode::CursorInvalidCursor,
-            bindings::MONGOC_ERROR_QUERY_FAILURE                 => MongoErrorCode::QueryFailure,
-            bindings::MONGOC_ERROR_BSON_INVALID                  => MongoErrorCode::BsonInvalid,
-            bindings::MONGOC_ERROR_MATCHER_INVALID               => MongoErrorCode::MatcherInvalid,
-            bindings::MONGOC_ERROR_NAMESPACE_INVALID             => MongoErrorCode::NamespaceInvalid,
-            bindings::MONGOC_ERROR_NAMESPACE_INVALID_FILTER_TYPE => MongoErrorCode::NamespaceInvalidFilterType,
-            bindings::MONGOC_ERROR_COMMAND_INVALID_ARG           => MongoErrorCode::CommandInvalidArg,
-            bindings::MONGOC_ERROR_COLLECTION_INSERT_FAILED      => MongoErrorCode::CollectionInsertFailed,
-            bindings::MONGOC_ERROR_COLLECTION_UPDATE_FAILED      => MongoErrorCode::CollectionUpdateFailed,
-            bindings::MONGOC_ERROR_COLLECTION_DELETE_FAILED      => MongoErrorCode::CollectionDeleteFailed,
-            bindings::MONGOC_ERROR_COLLECTION_DOES_NOT_EXIST     => MongoErrorCode::CollectionDoesNotExist,
-            bindings::MONGOC_ERROR_GRIDFS_INVALID_FILENAME       => MongoErrorCode::GridfsInvalidFilename,
-            bindings::MONGOC_ERROR_SCRAM_NOT_DONE                => MongoErrorCode::ScramNotDone,
-            bindings::MONGOC_ERROR_SCRAM_PROTOCOL_ERROR          => MongoErrorCode::ScramProtocolError,
-            bindings::MONGOC_ERROR_QUERY_COMMAND_NOT_FOUND       => MongoErrorCode::QueryCommandNotFound,
-            bindings::MONGOC_ERROR_QUERY_NOT_TAILABLE            => MongoErrorCode::QueryNotTailable,
-            bindings::MONGOC_ERROR_WRITE_CONCERN_ERROR           => MongoErrorCode::WriteConcernError,
-            bindings::MONGOC_ERROR_DUPLICATE_KEY                 => MongoErrorCode::DuplicateKey,
-            code                                                 => MongoErrorCode::Unknown(code)
+            0 => MongoErrorCode::Blank,
+            bindings::MONGOC_ERROR_STREAM_INVALID_TYPE => MongoErrorCode::StreamInvalidType,
+            bindings::MONGOC_ERROR_STREAM_INVALID_STATE => MongoErrorCode::StreamInvalidState,
+            bindings::MONGOC_ERROR_STREAM_NAME_RESOLUTION => MongoErrorCode::StreamNameResolution,
+            bindings::MONGOC_ERROR_STREAM_SOCKET => MongoErrorCode::StreamSocket,
+            bindings::MONGOC_ERROR_STREAM_CONNECT => MongoErrorCode::StreamConnect,
+            bindings::MONGOC_ERROR_STREAM_NOT_ESTABLISHED => MongoErrorCode::StreamNotEstablished,
+            bindings::MONGOC_ERROR_CLIENT_NOT_READY => MongoErrorCode::ClientNotReady,
+            bindings::MONGOC_ERROR_CLIENT_TOO_BIG => MongoErrorCode::ClientTooBig,
+            bindings::MONGOC_ERROR_CLIENT_TOO_SMALL => MongoErrorCode::ClientTooSmall,
+            bindings::MONGOC_ERROR_CLIENT_GETNONCE => MongoErrorCode::ClientGetnonce,
+            bindings::MONGOC_ERROR_CLIENT_AUTHENTICATE => MongoErrorCode::ClientAuthenticate,
+            bindings::MONGOC_ERROR_CLIENT_NO_ACCEPTABLE_PEER => {
+                MongoErrorCode::ClientNoAcceptablePeer
+            }
+            bindings::MONGOC_ERROR_CLIENT_IN_EXHAUST => MongoErrorCode::ClientInExhaust,
+            bindings::MONGOC_ERROR_PROTOCOL_INVALID_REPLY => MongoErrorCode::ProtocolInvalidReply,
+            bindings::MONGOC_ERROR_PROTOCOL_BAD_WIRE_VERSION => {
+                MongoErrorCode::ProtocolBadWireVersion
+            }
+            bindings::MONGOC_ERROR_CURSOR_INVALID_CURSOR => MongoErrorCode::CursorInvalidCursor,
+            bindings::MONGOC_ERROR_QUERY_FAILURE => MongoErrorCode::QueryFailure,
+            bindings::MONGOC_ERROR_BSON_INVALID => MongoErrorCode::BsonInvalid,
+            bindings::MONGOC_ERROR_MATCHER_INVALID => MongoErrorCode::MatcherInvalid,
+            bindings::MONGOC_ERROR_NAMESPACE_INVALID => MongoErrorCode::NamespaceInvalid,
+            bindings::MONGOC_ERROR_NAMESPACE_INVALID_FILTER_TYPE => {
+                MongoErrorCode::NamespaceInvalidFilterType
+            }
+            bindings::MONGOC_ERROR_COMMAND_INVALID_ARG => MongoErrorCode::CommandInvalidArg,
+            bindings::MONGOC_ERROR_COLLECTION_INSERT_FAILED => {
+                MongoErrorCode::CollectionInsertFailed
+            }
+            bindings::MONGOC_ERROR_COLLECTION_UPDATE_FAILED => {
+                MongoErrorCode::CollectionUpdateFailed
+            }
+            bindings::MONGOC_ERROR_COLLECTION_DELETE_FAILED => {
+                MongoErrorCode::CollectionDeleteFailed
+            }
+            bindings::MONGOC_ERROR_COLLECTION_DOES_NOT_EXIST => {
+                MongoErrorCode::CollectionDoesNotExist
+            }
+            bindings::MONGOC_ERROR_GRIDFS_INVALID_FILENAME => MongoErrorCode::GridfsInvalidFilename,
+            bindings::MONGOC_ERROR_SCRAM_NOT_DONE => MongoErrorCode::ScramNotDone,
+            bindings::MONGOC_ERROR_SCRAM_PROTOCOL_ERROR => MongoErrorCode::ScramProtocolError,
+            bindings::MONGOC_ERROR_QUERY_COMMAND_NOT_FOUND => MongoErrorCode::QueryCommandNotFound,
+            bindings::MONGOC_ERROR_QUERY_NOT_TAILABLE => MongoErrorCode::QueryNotTailable,
+            bindings::MONGOC_ERROR_WRITE_CONCERN_ERROR => MongoErrorCode::WriteConcernError,
+            bindings::MONGOC_ERROR_DUPLICATE_KEY => MongoErrorCode::DuplicateKey,
+            code => MongoErrorCode::Unknown(code),
         }
     }
 
@@ -318,7 +334,7 @@ pub struct BulkOperationError {
     /// Returned error
     pub error: MongoError,
     /// Error report
-    pub reply: Document
+    pub reply: Document,
 }
 
 impl fmt::Display for BulkOperationError {
@@ -335,7 +351,7 @@ impl error::Error for BulkOperationError {
 
 #[cfg(test)]
 mod tests {
-    use super::{BsoncError,MongoErrorDomain,MongoErrorCode};
+    use super::{BsoncError, MongoErrorCode, MongoErrorDomain};
 
     #[test]
     fn test_bson_error_empty() {
