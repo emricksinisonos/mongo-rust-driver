@@ -12,7 +12,7 @@ exclude     = ["mongo-c-driver-*"]
 
 [dependencies]
 libc        = "0.2"
-openssl-sys = "0.9"
+openssl-sys = {version="0.9", features=["vendored"]}
 
 [build-dependencies]
 pkg-config = "0.3"
