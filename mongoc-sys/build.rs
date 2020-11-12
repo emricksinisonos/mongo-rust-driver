@@ -51,7 +51,7 @@ fn lin(mongoc_version: &str) {
             // Configure and install
             let mut command = Command::new("sh");
             command.arg("configure");
-            command.arg("--enable-ssl=openssl");
+            command.arg("--enable-ssl=no");
             command.arg("--enable-sasl=no");
             command.arg("--enable-static=yes");
             command.arg("--enable-shared=no");
